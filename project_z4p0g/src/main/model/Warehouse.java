@@ -6,6 +6,8 @@ import org.json.JSONObject;
 import persistence.Writable;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 // Construct a warehouse
@@ -42,9 +44,24 @@ public class Warehouse implements Writable {
         }
     }
 
-    // EFFECTS: get a view of all available cosmetics in the warehouse
+    // MODIFIES: this
+    // EFFECTS: remove every cosmetic whose brand and type both match;
+    //          return the number of cosmetics removed
+    public int removeMatching(String brand, String type) {
+        int removed = 0;
+        for (Iterator<Cosmetic> it = allCosmetics.iterator(); it.hasNext();) {
+            Cosmetic cos = it.next();
+            if (cos.getCosBrand().equals(brand) && cos.getCosType().equals(type)) {
+                it.remove();
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    // EFFECTS: get a read-only view of all available cosmetics in the warehouse
     public List<Cosmetic> viewCosmetics() {
-        return allCosmetics;
+        return Collections.unmodifiableList(allCosmetics);
     }
 
     // EFFECTS: get a view of all available cosmetics names in the warehouse

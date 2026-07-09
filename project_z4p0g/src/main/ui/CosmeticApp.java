@@ -8,7 +8,6 @@ import persistence.JsonWriter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
@@ -77,7 +76,7 @@ public class CosmeticApp {
         wh = new Warehouse("wh1");
         wh.addCosmetic(cos1);
         input = new Scanner(System.in);
-        input.useDelimiter("\n");
+        input.useDelimiter("\\r?\\n");
     }
 
     // EFFECTS: displays menu of options to user
@@ -96,24 +95,21 @@ public class CosmeticApp {
     // EFFECTS: if the customer wants to order, ask what they need
     public void makeNextMove() {
         System.out.println("Please enter your name: ");
-        String customerName = null;
-        customerName = input.next();
+        String customerName = input.next();
         System.out.println("Welcome to our warehouse " + customerName + "!");
 
         System.out.println("Please enter the type of product you want to buy: ");
-        String nextCommand = null;
-        nextCommand = input.next();
+        String nextCommand = input.next();
 
-        if (!matchProductsToNeed(nextCommand).isEmpty()) {
-            System.out.println(
-                    "Here is your product " + matchProductsToNeed(nextCommand).get(0).getCosBrand() + "!");
+        List<Cosmetic> matches = matchProductsToNeed(nextCommand);
+        if (!matches.isEmpty()) {
+            System.out.println("Here is your product " + matches.get(0).getCosBrand() + "!");
         } else {
             System.out.println("Sorry we can't find the product you need in our warehouse.");
         }
     }
 
-    // EFFECTS: matching the proper products for the lovely customer from the warehouse,
-    //          and remove the cosmetic from the warehouse
+    // EFFECTS: return all cosmetics in the warehouse whose type matches the customer's need
     public List<Cosmetic> matchProductsToNeed(String s) {
         List<Cosmetic> matchingProducts = new ArrayList<>();
         List<Cosmetic> allProducts = wh.viewCosmetics();
@@ -131,42 +127,35 @@ public class CosmeticApp {
         System.out.println("All products in the warehouse are " + wh.viewCosmeticsTypes());
     }
 
-    // REQUIRES: the cosmetic isn't in the warehouse yet
+    // MODIFIES: this
     // EFFECTS: add the cosmetic to the warehouse
     public void addCosmetics() {
         System.out.println("Please enter the brand of product: ");
-        String cosmeticBrand = null;
-        cosmeticBrand = input.next();
+        String cosmeticBrand = input.next();
 
         System.out.println("Please enter the type of product: ");
-        String cosmeticType = null;
-        cosmeticType = input.next();
+        String cosmeticType = input.next();
 
         Cosmetic newCosmetic = new Cosmetic(cosmeticBrand, cosmeticType);
         wh.addCosmetic(newCosmetic);
         System.out.println("Successfully add the product " + cosmeticBrand + " to our warehouse!");
-
     }
 
-    // REQUIRES: the cosmetic already exists in the warehouse
-    // EFFECTS: remove the cosmetic from the warehouse
+    // MODIFIES: this
+    // EFFECTS: remove all cosmetics matching the given brand and type from the warehouse
     public void removeCosmetics() {
         System.out.println("Please enter the brand of product: ");
-        String cosmeticBrand = null;
-        cosmeticBrand = input.next();
+        String cosmeticBrand = input.next();
 
         System.out.println("Please enter the type of product: ");
-        String cosmeticType = null;
-        cosmeticType = input.next();
+        String cosmeticType = input.next();
 
-        List<Cosmetic> allProducts = wh.viewCosmetics();
-        for (Iterator<Cosmetic> cosit = allProducts.iterator(); cosit.hasNext();) {
-            Cosmetic cos = cosit.next();
-            if (cos.getCosType().equals(cosmeticType) && cos.getCosBrand().equals(cosmeticBrand)) {
-                cosit.remove();
-            }
+        int removed = wh.removeMatching(cosmeticBrand, cosmeticType);
+        if (removed > 0) {
+            System.out.println("Successfully remove the product " + cosmeticBrand + " from our warehouse!");
+        } else {
+            System.out.println("No product " + cosmeticBrand + " " + cosmeticType + " found in our warehouse.");
         }
-        System.out.println("Successfully remove the product " + cosmeticBrand + " from our warehouse!");
     }
 
     // EFFECTS: saves the warehouse to file

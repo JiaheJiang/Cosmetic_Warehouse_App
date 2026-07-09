@@ -1,0 +1,16 @@
+# Compiled output
+out/
+build/
+target/
+*.class
+
+# Obsolete serialized state (the app now persists to data/*.json)
+*.ser
+
+# IDE
+.idea/
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db

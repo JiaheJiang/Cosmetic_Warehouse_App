@@ -1,27 +1,45 @@
 ## Cosmetic Warehouse Management Application
 
 ### Overview
-This project is a desktop application designed to manage cosmetic products in a warehouse. The application allows users to view, add, and remove products, as well as save the current state of the warehouse. The backend is implemented in Java with local storage in JSON format, and the frontend is built using a JavaFX GUI integrated with the Java backend.
+This project is a desktop application for managing cosmetic products in a warehouse. Users can view, add, remove, and purchase products, and save/load the warehouse state. The backend is implemented in Java with local storage in JSON format; two frontends are provided — a console UI and a Java Swing GUI — both backed by the same model and persistence layer.
+
+The application code lives in [`project_z4p0g/`](project_z4p0g/).
 
 ### Features
-- **View Products**: Display a list of all cosmetic products in the warehouse.
+- **View Products**: Display all cosmetic products currently in the warehouse.
 - **Add Products**: Add new cosmetic products to the warehouse inventory.
-- **Remove Products**: Remove existing cosmetic products from the warehouse inventory.
-- **Save State**: Save the current state of the warehouse to local storage.
+- **Remove Products**: Remove existing products (the warehouse always keeps at least one product).
+- **Purchase Products** (GUI): Record purchases of the selected product.
+- **Match Products** (console): Match a customer's needed product type to an available brand.
+- **Save / Load State**: Persist the warehouse to `data/warehouse.json` and reload it on startup.
+- **Event Log**: All add/remove/purchase/save/load actions are logged and printed when the GUI closes.
 
-### Technical Details
-- **Backend**: Implemented in Java with local storage in JSON format.
-- **Frontend**: Designed using JavaFX GUI, integrated with the Java backend for seamless data tracking and storage.
+### Project Structure
+```
+project_z4p0g/
+├── src/main/
+│   ├── model/         Warehouse, Cosmetic, Event, EventLog + exceptions
+│   ├── persistence/   JSON reader/writer (org.json)
+│   └── ui/            Main + CosmeticApp (console), CosmeticAppGUI + WarehouseGUI (Swing)
+├── src/test/          JUnit 5 tests for model and persistence
+├── data/              JSON store and test fixtures
+└── lib/               Jars for IDE-based setups (Maven users don't need these)
+```
+
+### Build and Test
+Requires JDK 11+ and Maven. From `project_z4p0g/`:
+
+```bash
+mvn test                                          # run the test suite
+mvn compile exec:java                             # run the console app
+mvn compile exec:java -Dexec.mainClass=ui.CosmeticAppGUI   # run the Swing GUI
+```
+
+The project can also be opened directly in IntelliJ IDEA using the bundled jars in `lib/`.
 
 ### Usage
-- **Viewing Products**: The main window displays a list of all cosmetic products currently in the warehouse.
-- **Adding Products**: Use the "Add Product" button to open a form for adding new products. Enter the product details and click "Save".
-- **Removing Products**: Select a product from the list and click the "Remove Product" button to delete it from the inventory.
-- **Saving State**: The application automatically saves the current state of the warehouse to local storage in JSON format.
-
-### Dependencies
-- Java Development Kit (JDK) 8 or higher
-- JavaFX SDK
+- **Console app** (`ui.Main`): menu-driven — view, add, remove, order, save, and load.
+- **GUI app** (`ui.CosmeticAppGUI`): log in (username `Crystal`, password `666666` — a demo login, not real security), choose whether to load the last saved state, then manage products in the warehouse window. The combo box on the right shows the current products; the text field on the left adds a new product by type.
 
 ### Contributing
 Contributions are welcome! Please fork the repository and submit a pull request with your changes.

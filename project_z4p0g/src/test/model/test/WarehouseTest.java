@@ -87,6 +87,34 @@ class WarehouseTest {
     }
 
     @Test
+    void testRemoveMatchingSingle() {
+        testWarehouse.addCosmetic(cos1);
+        testWarehouse.addCosmetic(cos2);
+        assertEquals(1, testWarehouse.removeMatching("Lancome", "Eyeliner"));
+        assertEquals(1, testWarehouse.viewCosmetics().size());
+        assertEquals(cos2, testWarehouse.viewCosmetics().get(0));
+    }
+
+    @Test
+    void testRemoveMatchingMultipleAndNoMatch() {
+        testWarehouse.addCosmetic(cos1);
+        testWarehouse.addCosmetic(new Cosmetic("Lancome", "Eyeliner"));
+        testWarehouse.addCosmetic(cos2);
+        assertEquals(0, testWarehouse.removeMatching("Lancome", "Contour"));
+        assertEquals(3, testWarehouse.viewCosmetics().size());
+        assertEquals(2, testWarehouse.removeMatching("Lancome", "Eyeliner"));
+        assertEquals(1, testWarehouse.viewCosmetics().size());
+        assertEquals(cos2, testWarehouse.viewCosmetics().get(0));
+    }
+
+    @Test
+    void testViewCosmeticsIsReadOnly() {
+        testWarehouse.addCosmetic(cos1);
+        assertThrows(UnsupportedOperationException.class,
+                () -> testWarehouse.viewCosmetics().remove(cos1));
+    }
+
+    @Test
     void testViewCosmeticsTypesEmpty() {
         assertEquals(0, testWarehouse.viewCosmeticsTypes().size());
     }

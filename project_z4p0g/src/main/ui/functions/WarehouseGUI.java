@@ -1,45 +1,59 @@
 package ui.functions;
 
+import model.Cosmetic;
 import model.Event;
 import model.EventLog;
+import model.Warehouse;
+import model.exceptions.LastRemoveException;
+import persistence.JsonReader;
+import persistence.JsonWriter;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-// Constructs a new warehouse GUI
+// Constructs a new warehouse GUI backed by the Warehouse model and JSON persistence
 public class WarehouseGUI {
+    private static final String JSON_STORE = "./data/warehouse.json";
+    private static final String DEFAULT_BRAND = "Unknown";
+    private static final String[] DEFAULT_COSMETICS =
+            {"Moisturizers", "Cleansers", "Sunscreen", "Eyeliner", "Foundation", "Blush"};
+
     private JComboBox<String> chooseCosmetic;
     private JTextField newCosmeticTextField;
     private JButton addButton;
     private JButton removeButton;
     private JButton saveButton;
-    private JButton purchaseButton; // Added button for purchasing
+    private JButton purchaseButton;
     private JLabel initialWarehouse;
     private JLabel currentWarehouse;
     private JLabel actionLabel;
     private JLabel dateTime;
     private EventLog eventLog;
-    private String[] cosmetics = {"Moisturizers", "Cleansers", "Sunscreen", "Eyeliner", "Foundation", "Blush"};
-    private List<String> purchasedProducts; // List to store purchased products
+    private Warehouse warehouse;
+    private final JsonWriter jsonWriter;
+    private final JsonReader jsonReader;
+    private final List<String> purchasedProducts;
 
     // EFFECTS: Initializes the state of warehouse GUI
     public WarehouseGUI() {
+        jsonWriter = new JsonWriter(JSON_STORE);
+        jsonReader = new JsonReader(JSON_STORE);
+        purchasedProducts = new ArrayList<>();
+        warehouse = new Warehouse("wh1");
+
         initializeComponents();
         configureButtons();
-        configureFrame();
         curDateTime();
-        purchasedProducts = new ArrayList<>(); // Initialize the list for purchased products
 
-        boolean loadPreviousState = askUserForLoad();
-
-        if (loadPreviousState) {
+        if (askUserForLoad()) {
             loadState();
         } else {
             initializeDefaultCosmetics();
@@ -69,7 +83,7 @@ public class WarehouseGUI {
         removeButton = new JButton("Remove a cosmetic product");
         removeButton.setBounds(300, 200, 230, 30);
 
-        purchaseButton = new JButton("Purchase cosmetic products"); // Added purchase button
+        purchaseButton = new JButton("Purchase cosmetic products");
         purchaseButton.setBounds(300, 300, 230, 30);
 
         actionLabel = new JLabel();
@@ -88,96 +102,83 @@ public class WarehouseGUI {
     private void configureButtons() {
         addButton.addActionListener(this::addCosmetic);
         removeButton.addActionListener(this::removeCosmetic);
-        purchaseButton.addActionListener(this::purchaseCosmetic); // Added action for purchase button
+        purchaseButton.addActionListener(this::purchaseCosmetic);
         saveButton.addActionListener(this::saveState);
     }
 
-    // EFFECTS: Configures the JFrame for the cosmetic warehouse application.
-    private void configureFrame() {
-        JFrame frame = new JFrame("Cosmetic warehouse!");
-        frame.setSize(600, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setLayout(null);
-        frame.add(chooseCosmetic);
-        frame.add(newCosmeticTextField);
-        frame.add(initialWarehouse);
-        frame.add(addButton);
-        frame.add(removeButton);
-        frame.add(purchaseButton);
-        frame.add(actionLabel);
-        frame.add(dateTime);
-        frame.add(saveButton);
-        frame.add(currentWarehouse);
-    }
-
-    // EFFECTS: Adds a new cosmetic product to the chooseCosmetic combo box, by typing the name in provided textField.
-    //          save the adding behaviour to eventLog
+    // MODIFIES: this
+    // EFFECTS: Adds a new cosmetic product (by its type) to the warehouse, by typing the name
+    //          in provided textField. Save the adding behaviour to eventLog.
     private void addCosmetic(ActionEvent e) {
-        if (e.getSource() == addButton) {
-            String newCosmetic = newCosmeticTextField.getText().trim();
-            if (!newCosmetic.isEmpty()) {
-                actionLabel.setText("You successfully added a new: " + newCosmetic);
-                chooseCosmetic.addItem(newCosmetic);
-                EventLog.getInstance().logEvent(new Event("Add a new cosmetic product: "
-                        + newCosmetic + " to the warehouse."));
-                newCosmeticTextField.setText("");
-            } else {
-                actionLabel.setText("Please enter a valid cosmetic product.");
-            }
+        String newCosmetic = newCosmeticTextField.getText().trim();
+        if (!newCosmetic.isEmpty()) {
+            warehouse.addCosmetic(new Cosmetic(DEFAULT_BRAND, newCosmetic));
+            refreshComboBox();
+            actionLabel.setText("You successfully added a new: " + newCosmetic);
+            eventLog.logEvent(new Event("Add a new cosmetic product: "
+                    + newCosmetic + " to the warehouse."));
+            newCosmeticTextField.setText("");
+        } else {
+            actionLabel.setText("Please enter a valid cosmetic product.");
         }
     }
 
-    // EFFECTS: Removes the selected cosmetic product from the chooseCosmetic combo box.
-    //          save the removing behaviour to eventLog
+    // MODIFIES: this
+    // EFFECTS: Removes the selected cosmetic product from the warehouse; at least one product
+    //          must remain in the warehouse. Save the removing behaviour to eventLog.
     private void removeCosmetic(ActionEvent e) {
-        if (e.getSource() == removeButton) {
-            String theCosmetic = chooseCosmetic.getItemAt(chooseCosmetic.getSelectedIndex()).toString();
-            String msg = "You successfully removed: " + theCosmetic;
-            EventLog.getInstance().logEvent(new Event("Remove the cosmetic product: "
-                    + theCosmetic + " from the warehouse."));
-            actionLabel.setText(msg);
-            chooseCosmetic.removeItemAt(chooseCosmetic.getSelectedIndex());
+        int selectedIndex = chooseCosmetic.getSelectedIndex();
+        if (selectedIndex < 0) {
+            actionLabel.setText("There is no cosmetic product to remove.");
+            return;
+        }
+        Cosmetic theCosmetic = warehouse.viewCosmetics().get(selectedIndex);
+        try {
+            warehouse.removeCosmetic(theCosmetic);
+            refreshComboBox();
+            actionLabel.setText("You successfully removed: " + theCosmetic.getCosType());
+            eventLog.logEvent(new Event("Remove the cosmetic product: "
+                    + theCosmetic.getCosType() + " from the warehouse."));
+        } catch (LastRemoveException ex) {
+            actionLabel.setText("At least one cosmetic product must remain in the warehouse.");
         }
     }
 
+    // MODIFIES: this
     // EFFECTS: Adds the selected cosmetic product to the purchasedProducts list and displays a message with the
-    //          purchased products.
-    //          save the purchasing behaviour to eventLog
+    //          purchased products. Save the purchasing behaviour to eventLog.
     private void purchaseCosmetic(ActionEvent e) {
-        if (e.getSource() == purchaseButton) {
-            String selectedProduct = chooseCosmetic.getItemAt(chooseCosmetic.getSelectedIndex()).toString();
-            purchasedProducts.add(selectedProduct);
-            actionLabel.setText("You successfully purchased: " + selectedProduct);
-
-            EventLog.getInstance().logEvent(new Event("Purchase the cosmetic product: "
-                    + selectedProduct + " from the warehouse."));
-
-
-            // Print all purchased products as a string of messages
-            StringBuilder purchasedMessage = new StringBuilder("Products Purchased:\n");
-            for (String product : purchasedProducts) {
-                purchasedMessage.append("- ").append(product).append("\n");
-            }
-            JOptionPane.showMessageDialog(null, purchasedMessage.toString(),
-                    "Purchased Products", JOptionPane.INFORMATION_MESSAGE);
+        int selectedIndex = chooseCosmetic.getSelectedIndex();
+        if (selectedIndex < 0) {
+            actionLabel.setText("There is no cosmetic product to purchase.");
+            return;
         }
+        String selectedProduct = chooseCosmetic.getItemAt(selectedIndex);
+        purchasedProducts.add(selectedProduct);
+        actionLabel.setText("You successfully purchased: " + selectedProduct);
+
+        eventLog.logEvent(new Event("Purchase the cosmetic product: "
+                + selectedProduct + " from the warehouse."));
+
+        StringBuilder purchasedMessage = new StringBuilder("Products Purchased:\n");
+        for (String product : purchasedProducts) {
+            purchasedMessage.append("- ").append(product).append("\n");
+        }
+        JOptionPane.showMessageDialog(null, purchasedMessage.toString(),
+                "Purchased Products", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    // EFFECTS: Saves the current state of the warehouse to a file.
+    // EFFECTS: Saves the current state of the warehouse to file as JSON.
     //          Save the saving action to eventLog.
     private void saveState(ActionEvent ae) {
-        if (ae.getSource() == saveButton) {
-            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("cosmetic_state.ser"))) {
-                oos.writeObject(chooseCosmetic.getItemCount());
-                for (int i = 0; i < chooseCosmetic.getItemCount(); i++) {
-                    oos.writeObject(chooseCosmetic.getItemAt(i));
-                }
-                oos.writeObject(actionLabel.getText());
-
-                EventLog.getInstance().logEvent(new Event("Save the current warehouse state."));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        try {
+            jsonWriter.open();
+            jsonWriter.write(warehouse);
+            jsonWriter.close();
+            actionLabel.setText("Saved the warehouse state to " + JSON_STORE);
+            eventLog.logEvent(new Event("Save the current warehouse state."));
+        } catch (FileNotFoundException e) {
+            actionLabel.setText("Unable to save the warehouse state to " + JSON_STORE);
         }
     }
 
@@ -189,27 +190,35 @@ public class WarehouseGUI {
         return dialogResult == JOptionPane.YES_OPTION;
     }
 
-    // EFFECTS: Loads the last saved warehouse state from a file.
-    //          Save the loading behaviour to eventLog.
+    // MODIFIES: this
+    // EFFECTS: Loads the last saved warehouse state from file; falls back to the default
+    //          cosmetics if the file cannot be read. Save the loading behaviour to eventLog.
     private void loadState() {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("cosmetic_state.ser"))) {
-            int itemCount = (int) ois.readObject();
-            for (int i = 0; i < itemCount; i++) {
-                chooseCosmetic.addItem((String) ois.readObject());
-            }
-            Object actionLabelText = ois.readObject();
-            actionLabel.setText(actionLabelText.toString());
-
-            EventLog.getInstance().logEvent(new Event("Load the last saved warehouse state."));
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+        try {
+            warehouse = jsonReader.read();
+            refreshComboBox();
+            eventLog.logEvent(new Event("Load the last saved warehouse state."));
+        } catch (IOException | org.json.JSONException e) {
+            actionLabel.setText("Unable to load a saved state; starting with the default products.");
+            initializeDefaultCosmetics();
         }
     }
 
-    // EFFECTS: Initializes the default cosmetic products in the chooseCosmetic combo box.
+    // MODIFIES: this
+    // EFFECTS: Initializes the default cosmetic products in the warehouse.
     private void initializeDefaultCosmetics() {
-        for (String cosmetic : cosmetics) {
-            chooseCosmetic.addItem(cosmetic);
+        for (String cosmetic : DEFAULT_COSMETICS) {
+            warehouse.addCosmetic(new Cosmetic(DEFAULT_BRAND, cosmetic));
+        }
+        refreshComboBox();
+    }
+
+    // MODIFIES: this
+    // EFFECTS: Rebuilds the combo box so it mirrors the cosmetics currently in the warehouse.
+    private void refreshComboBox() {
+        chooseCosmetic.removeAllItems();
+        for (String type : warehouse.viewCosmeticsTypes()) {
+            chooseCosmetic.addItem(type);
         }
     }
 
@@ -227,10 +236,9 @@ public class WarehouseGUI {
         }
     }
 
-
-    // EFFECTS: Displays the main JFrame for the cosmetic warehouse application.
+    // EFFECTS: Builds and displays the main JFrame for the cosmetic warehouse application.
     private void showFrame() {
-        JFrame frame = new JFrame("Cosmetics");
+        JFrame frame = new JFrame("Cosmetic warehouse!");
         frame.setSize(600, 600);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(null);

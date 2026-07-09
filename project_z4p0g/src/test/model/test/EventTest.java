@@ -25,12 +25,12 @@ public class EventTest {
     @Test
     public void testEvent() {
         assertEquals("Add a new cosmetic product.", e.getDescription());
-        assertFalse(d.equals(e.getDate()));
+        assertFalse(e.getDate().after(d));
     }
 
     @Test
     public void testToString() {
-        assertEquals(d.toString() + "\n" + "Sensor open at door", e.toString());
+        assertEquals(e.getDate().toString() + "\n" + "Add a new cosmetic product.", e.toString());
     }
 
     @Test

@@ -14,6 +14,12 @@ import java.nio.file.StandardCopyOption;
 
 // Construct a CosmeticAppGUI
 public class CosmeticAppGUI implements ActionListener {
+    private static final String USERNAME = "Crystal";
+    private static final String PASSWORD = "666666";
+    private static final String BACKGROUND_IMAGE_PATH = "background.jpg";
+    private static final String BACKGROUND_IMAGE_URL =
+            "https://img.freepik.com/premium-photo/purple-wallpaper-pink-sunrise-background_931878-26252.jpg";
+
     private JLabel label;
     private JLabel passwordLabel;
     private JLabel success;
@@ -24,8 +30,7 @@ public class CosmeticAppGUI implements ActionListener {
 
     // Initialize the login interface of CosmeticApp
     public CosmeticAppGUI() {
-        downloadImage("https://img.freepik.com/premium-photo/purple-wallpaper-pink-sunrise-background_931878-26252.jpg",
-                "background.jpg");
+        ensureBackgroundImage();
 
         initializeFrame();
 
@@ -37,9 +42,9 @@ public class CosmeticAppGUI implements ActionListener {
         frame.setVisible(true);
     }
 
-    // EFFECTS: construct a new CosmeticAppGUI
+    // EFFECTS: construct a new CosmeticAppGUI on the Swing event dispatch thread
     public static void main(String[] args) {
-        new CosmeticAppGUI();
+        SwingUtilities.invokeLater(CosmeticAppGUI::new);
     }
 
     // EFFECTS: authenticate the user's identity
@@ -53,7 +58,7 @@ public class CosmeticAppGUI implements ActionListener {
         String user = userText.getText();
         String password = new String(passwordText.getPassword());
 
-        if (user.equals("Crystal") && password.equals("666666")) {
+        if (user.equals(USERNAME) && password.equals(PASSWORD)) {
             success.setText("Login successful!");
             openCosmeticGUI();
             closeLoginInterface();
@@ -77,7 +82,7 @@ public class CosmeticAppGUI implements ActionListener {
         frame = new JFrame("Cosmetic Warehouse Login");
         frame.setSize(350, 400);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setContentPane(new JLabel(new ImageIcon("background.jpg")));
+        frame.setContentPane(new JLabel(new ImageIcon(BACKGROUND_IMAGE_PATH)));
         frame.setLayout(new BorderLayout());
     }
 
@@ -140,16 +145,20 @@ public class CosmeticAppGUI implements ActionListener {
         return newButton;
     }
 
-    // EFFECTS: download image from website as the background image of user's login interface
-    private void downloadImage(String imageUrl, String localImagePath) {
+    // EFFECTS: use the bundled background image for the login interface;
+    //          download it only if the local file is missing
+    private void ensureBackgroundImage() {
+        Path targetPath = Path.of(BACKGROUND_IMAGE_PATH);
+        if (Files.exists(targetPath)) {
+            return;
+        }
         try {
-            URL url = new URL(imageUrl);
-            Path targetPath = Path.of(localImagePath);
+            URL url = new URL(BACKGROUND_IMAGE_URL);
             try (var in = url.openStream()) {
                 Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            // the login screen still works without a background image
         }
     }
 }
