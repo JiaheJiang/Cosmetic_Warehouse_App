@@ -1,45 +1,46 @@
 package ui;
 
 import ui.functions.WarehouseGUI;
+import ui.theme.CardPanel;
+import ui.theme.GradientPanel;
+import ui.theme.RoundedButton;
+import ui.theme.Theme;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
-// Construct a CosmeticAppGUI
+// Construct a CosmeticAppGUI: the themed login window that guards the warehouse
 public class CosmeticAppGUI implements ActionListener {
     private static final String USERNAME = "Crystal";
     private static final String PASSWORD = "666666";
-    private static final String BACKGROUND_IMAGE_PATH = "background.jpg";
-    private static final String BACKGROUND_IMAGE_URL =
-            "https://img.freepik.com/premium-photo/purple-wallpaper-pink-sunrise-background_931878-26252.jpg";
 
-    private JLabel label;
-    private JLabel passwordLabel;
-    private JLabel success;
     private JTextField userText;
     private JPasswordField passwordText;
-    private JButton button;
+    private JButton loginButton;
+    private JLabel statusLabel;
     private JFrame frame;
 
-    // Initialize the login interface of CosmeticApp
+    // EFFECTS: initialize the login interface of CosmeticApp
     public CosmeticAppGUI() {
-        ensureBackgroundImage();
-
+        Theme.installLookAndFeel();
         initializeFrame();
-
-        JPanel panel = createPanel();
-        configureFrame(panel);
-
-        initializeComponents(panel);
-
+        frame.setContentPane(buildBackdrop());
+        frame.getRootPane().setDefaultButton(loginButton);
         frame.setVisible(true);
+        userText.requestFocusInWindow();
     }
 
     // EFFECTS: construct a new CosmeticAppGUI on the Swing event dispatch thread
@@ -47,118 +48,116 @@ public class CosmeticAppGUI implements ActionListener {
         SwingUtilities.invokeLater(CosmeticAppGUI::new);
     }
 
-    // EFFECTS: authenticate the user's identity
+    // EFFECTS: authenticate the user's identity when the login button (or Enter) is pressed
     @Override
     public void actionPerformed(ActionEvent e) {
         authenticateUser();
     }
 
-    // EFFECT: Inside warehouse app will open only if the user have typed correct username and password
+    // EFFECTS: open the warehouse app only if the user typed the correct username and password
     private void authenticateUser() {
         String user = userText.getText();
         String password = new String(passwordText.getPassword());
 
         if (user.equals(USERNAME) && password.equals(PASSWORD)) {
-            success.setText("Login successful!");
+            statusLabel.setForeground(Theme.SUCCESS);
+            statusLabel.setText("Login successful!");
             openCosmeticGUI();
             closeLoginInterface();
         } else {
-            success.setText("Login failed. " + "\n" + "Please check your credentials.");
+            statusLabel.setForeground(Theme.DANGER);
+            statusLabel.setText("Login failed. Please check your credentials.");
         }
     }
 
-    // EFFECTS: open warehouse application after entering correct username and password
+    // EFFECTS: open the warehouse application after entering the correct username and password
     private void openCosmeticGUI() {
         new WarehouseGUI();
     }
 
-    // EFFECTS: the login interface will disappear after entering warehouse application
+    // EFFECTS: the login interface will disappear after entering the warehouse application
     private void closeLoginInterface() {
         frame.dispose();
     }
 
-    //EFFECTS: initialize the login frame
+    // EFFECTS: initialize the login frame
     private void initializeFrame() {
         frame = new JFrame("Cosmetic Warehouse Login");
-        frame.setSize(350, 400);
+        frame.setSize(440, 540);
+        frame.setMinimumSize(new Dimension(400, 500));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setContentPane(new JLabel(new ImageIcon(BACKGROUND_IMAGE_PATH)));
-        frame.setLayout(new BorderLayout());
+        frame.setLocationRelativeTo(null);
     }
 
-    // EFFECTS: create a panel
-    private JPanel createPanel() {
-        JPanel panel = new JPanel();
-        panel.setOpaque(false);
-        return panel;
+    // EFFECTS: build the gradient backdrop with the login card centred on it
+    private JPanel buildBackdrop() {
+        GradientPanel backdrop = new GradientPanel(new GridBagLayout());
+        backdrop.add(buildCard(), new GridBagConstraints());
+        return backdrop;
     }
 
-    // EFFECTS: display the frame, add panel and border
-    private void configureFrame(JPanel panel) {
-        frame.add(panel, BorderLayout.CENTER);
+    // EFFECTS: build the white login card with title, credential fields, button, and status line
+    private JPanel buildCard() {
+        CardPanel card = new CardPanel(new GridBagLayout(), 30);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        addTitleRows(card, gbc);
+        addCredentialFields(card, gbc);
+        addButtonAndStatus(card, gbc);
+        return card;
     }
 
-    // EFFECTS: initialize all
-    private void initializeComponents(JPanel panel) {
-        label = createLabel("Username", 16);
-        userText = createTextField(20, 14);
-        passwordLabel = createLabel("Password", 16);
-        passwordText = createPasswordField(20, 14);
-        button = createButton("Login", 16);
-        success = createLabel("", 16);
+    // MODIFIES: card
+    // EFFECTS: add the heading and subtitle rows to the login card
+    private void addTitleRows(JPanel card, GridBagConstraints gbc) {
+        JLabel title = new JLabel("Cosmetic Warehouse", SwingConstants.CENTER);
+        title.setFont(Theme.font(Font.BOLD, 22));
+        title.setForeground(Theme.PRIMARY_DARK);
+        card.add(title, gbc);
 
-        panel.add(label);
-        panel.add(userText);
-        panel.add(passwordLabel);
-        panel.add(passwordText);
-        panel.add(button);
-        panel.add(success);
+        JLabel subtitle = new JLabel("Sign in to manage your inventory", SwingConstants.CENTER);
+        subtitle.setFont(Theme.font(Font.PLAIN, 13));
+        subtitle.setForeground(Theme.TEXT_MUTED);
+        gbc.insets = new Insets(4, 0, 0, 0);
+        card.add(subtitle, gbc);
     }
 
-    // EFFECTS: create a label
-    private JLabel createLabel(String text, int fontSize) {
-        JLabel newLabel = new JLabel(text);
-        newLabel.setForeground(Color.WHITE);
-        newLabel.setFont(new Font("Arial", Font.BOLD, fontSize));
-        return newLabel;
+    // MODIFIES: card
+    // EFFECTS: add the labelled username and password fields to the login card
+    private void addCredentialFields(JPanel card, GridBagConstraints gbc) {
+        gbc.insets = new Insets(22, 0, 4, 0);
+        card.add(Theme.fieldCaption("Username"), gbc);
+        gbc.insets = new Insets(0, 0, 0, 0);
+        userText = Theme.textField(18);
+        card.add(userText, gbc);
+
+        gbc.insets = new Insets(14, 0, 4, 0);
+        card.add(Theme.fieldCaption("Password"), gbc);
+        gbc.insets = new Insets(0, 0, 0, 0);
+        passwordText = Theme.passwordField(18);
+        card.add(passwordText, gbc);
     }
 
-    // EFFECTS: creates a text field
-    private JTextField createTextField(int columns, int fontSize) {
-        JTextField textField = new JTextField(columns);
-        textField.setFont(new Font("Arial", Font.PLAIN, fontSize));
-        return textField;
-    }
+    // MODIFIES: card
+    // EFFECTS: add the login button, status line, and demo-account hint to the login card
+    private void addButtonAndStatus(JPanel card, GridBagConstraints gbc) {
+        loginButton = RoundedButton.primary("Login");
+        loginButton.addActionListener(this);
+        gbc.insets = new Insets(24, 0, 0, 0);
+        card.add(loginButton, gbc);
 
-    // EFFECTS: create a password field
-    private JPasswordField createPasswordField(int columns, int fontSize) {
-        JPasswordField passwordField = new JPasswordField(columns);
-        passwordField.setFont(new Font("Arial", Font.PLAIN, fontSize));
-        return passwordField;
-    }
+        statusLabel = new JLabel(" ", SwingConstants.CENTER);
+        statusLabel.setFont(Theme.font(Font.PLAIN, 12));
+        gbc.insets = new Insets(12, 0, 0, 0);
+        card.add(statusLabel, gbc);
 
-    // EFFECTS: create a new button
-    private JButton createButton(String text, int fontSize) {
-        JButton newButton = new JButton(text);
-        newButton.setFont(new Font("Arial", Font.BOLD, fontSize));
-        newButton.addActionListener(this);
-        return newButton;
-    }
-
-    // EFFECTS: use the bundled background image for the login interface;
-    //          download it only if the local file is missing
-    private void ensureBackgroundImage() {
-        Path targetPath = Path.of(BACKGROUND_IMAGE_PATH);
-        if (Files.exists(targetPath)) {
-            return;
-        }
-        try {
-            URL url = new URL(BACKGROUND_IMAGE_URL);
-            try (var in = url.openStream()) {
-                Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            // the login screen still works without a background image
-        }
+        JLabel hint = new JLabel("Demo account: Crystal / 666666", SwingConstants.CENTER);
+        hint.setFont(Theme.font(Font.PLAIN, 11));
+        hint.setForeground(Theme.TEXT_MUTED);
+        gbc.insets = new Insets(16, 0, 0, 0);
+        card.add(hint, gbc);
     }
 }
